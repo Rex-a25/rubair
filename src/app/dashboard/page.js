@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import SearchBar from '@/components/SearchBar';
@@ -16,10 +16,10 @@ import {
   featuredMusic,
   featuredVideos,
   musicGenres,
-  trendingMusic,
-  trendingVideos,
   videoCategories
 } from '@/data/mockData';
+import { searchJamendoTracks } from '@/lib/jamendo';
+import { searchPixabayVideos } from '@/lib/pixabay';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('videos');
@@ -27,39 +27,100 @@ export default function DashboardPage() {
   const [selectedChip, setSelectedChip] = useState('All');
   const [loading, setLoading] = useState(false);
 
-  const chips = activeTab === 'videos' ? ['All', ...videoCategories] : ['All', ...musicGenres];
-  const data = activeTab === 'videos' ? trendingVideos : trendingMusic;
+  const [videoResults, setVideoResults] = useState([]);
+  const [musicResults, setMusicResults] = useState([]);
+  const [videoError, setVideoError] = useState('');
+  const [musicError, setMusicError] = useState('');
 
-  const filteredItems = useMemo(() => {
-    return data.filter((item) => {
-      const haystack = `${item.title} ${item.creator || ''} ${item.artist || ''}`.toLowerCase();
-      const matchQuery = haystack.includes(query.toLowerCase());
-      const matchChip = selectedChip === 'All' || haystack.includes(selectedChip.toLowerCase());
-      return matchQuery && matchChip;
-    });
-  }, [data, query, selectedChip]);
+  const chips = useMemo(() => {
+    return activeTab === 'videos'
+      ? ['All', ...videoCategories]
+      : ['All', ...musicGenres];
+  }, [activeTab]);
 
-  const isEmptySearch = query.trim().length === 0 && selectedChip === 'All';
+  useEffect(() => {
+    if (activeTab !== 'videos') return;
+
+    const loadVideos = async () => {
+      setLoading(true);
+      setVideoError('');
+
+      try {
+        const results = await searchPixabayVideos({
+          query: query.trim(),
+          category: selectedChip,
+          perPage: 12,
+        });
+
+        setVideoResults(results);
+      } catch (error) {
+        console.error(error);
+        setVideoError(error.message || 'Could not load videos right now.');
+        setVideoResults([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(loadVideos, 350);
+    return () => clearTimeout(timeoutId);
+  }, [activeTab, query, selectedChip]);
+
+  useEffect(() => {
+    if (activeTab !== 'music') return;
+
+    const loadTracks = async () => {
+      setLoading(true);
+      setMusicError('');
+
+      try {
+        const tags = selectedChip !== 'All' ? [selectedChip.toLowerCase()] : [];
+        const results = await searchJamendoTracks({
+          query,
+          limit: 12,
+          tags,
+        });
+
+        setMusicResults(results);
+      } catch (error) {
+        console.error(error);
+        setMusicError('Could not load music right now.');
+        setMusicResults([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(loadTracks, 350);
+    return () => clearTimeout(timeoutId);
+  }, [activeTab, query, selectedChip]);
+
+  const currentItems = activeTab === 'videos' ? videoResults : musicResults;
+  const currentError = activeTab === 'videos' ? videoError : musicError;
 
   return (
     <main className="min-h-screen">
       <Navbar dashboard />
+
       <section className="section-wrap py-8 sm:py-12">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">Creator Workspace</p>
-            <h1 className="text-3xl font-semibold">Find the perfect {activeTab === 'videos' ? 'visuals' : 'soundtrack'}.</h1>
+            <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">
+              Creator Workspace
+            </p>
+            <h1 className="text-3xl font-semibold">
+              Find the perfect {activeTab === 'videos' ? 'visuals' : 'soundtrack'}.
+            </h1>
           </div>
+
           <SectionTabs
             active={activeTab}
             setActive={(tab) => {
-              setLoading(true);
-              setTimeout(() => {
-                setActiveTab(tab);
-                setSelectedChip('All');
-                setQuery('');
-                setLoading(false);
-              }, 250);
+              setActiveTab(tab);
+              setSelectedChip('All');
+              setQuery('');
+              setVideoError('');
+              setMusicError('');
             }}
           />
         </div>
@@ -74,6 +135,7 @@ export default function DashboardPage() {
                 : 'Search for cinematic, afrobeat, calm, hype...'
             }
           />
+
           <button className="glass rounded-2xl px-4 py-3 text-sm text-slate-300 hover:bg-white/10">
             Advanced Filters
           </button>
@@ -90,7 +152,24 @@ export default function DashboardPage() {
         />
 
         <div>
-          <h2 className="mb-4 text-lg font-semibold">{activeTab === 'videos' ? 'Trending clips' : 'Trending free tracks'}</h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">
+              {activeTab === 'videos' ? 'Trending clips' : 'Trending free tracks'}
+            </h2>
+
+            {activeTab === 'videos' && currentItems.length > 0 && (
+              <p className="text-xs text-slate-400">
+                Results powered by Pixabay
+              </p>
+            )}
+
+            {activeTab === 'music' && currentItems.length > 0 && (
+              <p className="text-xs text-slate-400">
+                Results powered by Jamendo
+              </p>
+            )}
+          </div>
+
           <AnimatePresence mode="wait">
             <motion.div
               key={`${activeTab}-${query}-${selectedChip}-${loading}`}
@@ -100,21 +179,29 @@ export default function DashboardPage() {
             >
               {loading ? (
                 <LoadingSkeleton />
-              ) : isEmptySearch ? (
+              ) : currentError ? (
                 <EmptyState
-                  title={`Start searching ${activeTab === 'videos' ? 'videos' : 'music'}`}
-                  description={`Use the search bar or ${activeTab === 'videos' ? 'category chips' : 'genre filters'} to discover curated media quickly.`}
+                  title={activeTab === 'videos' ? 'Videos could not load' : 'Music could not load'}
+                  description={currentError}
                 />
-              ) : filteredItems.length === 0 ? (
+              ) : currentItems.length === 0 ? (
                 <EmptyState
                   title="No results found"
                   description="Try another keyword, remove a filter, or switch tabs to explore a broader media selection."
                 />
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  {filteredItems.map((item) => (
-                    <motion.div key={item.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-                      {activeTab === 'videos' ? <VideoCard item={item} /> : <MusicCard item={item} />}
+                  {currentItems.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {activeTab === 'videos' ? (
+                        <VideoCard item={item} />
+                      ) : (
+                        <MusicCard item={item} />
+                      )}
                     </motion.div>
                   ))}
                 </div>
