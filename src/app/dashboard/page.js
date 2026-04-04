@@ -6,20 +6,37 @@ import Navbar from '@/components/Navbar';
 import SearchBar from '@/components/SearchBar';
 import SectionTabs from '@/components/SectionTabs';
 import FilterChips from '@/components/FilterChips';
-import FeaturedSection from '@/components/FeaturedSection';
 import EmptyState from '@/components/EmptyState';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import Footer from '@/components/Footer';
 import VideoCard from '@/components/VideoCard';
 import MusicCard from '@/components/MusicCard';
-import {
-  featuredMusic,
-  featuredVideos,
-  musicGenres,
-  videoCategories
-} from '@/data/mockData';
 import { searchJamendoTracks } from '@/lib/jamendo';
 import { searchPixabayVideos } from '@/lib/pixabay';
+
+const videoCategories = [
+  'All',
+  'Travel',
+  'Cars',
+  'Luxury',
+  'Fashion',
+  'Aerial',
+  'Lifestyle',
+  'Startup',
+];
+
+const musicGenres = [
+  'All',
+  'Afrobeat',
+  'Hip Hop',
+  'Pop',
+  'Ambient',
+  'Dance',
+  'Instrumental',
+  'Cinematic',
+  'Chill',
+  'Electronic',
+];
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('videos');
@@ -33,9 +50,7 @@ export default function DashboardPage() {
   const [musicError, setMusicError] = useState('');
 
   const chips = useMemo(() => {
-    return activeTab === 'videos'
-      ? ['All', ...videoCategories]
-      : ['All', ...musicGenres];
+    return activeTab === 'videos' ? videoCategories : musicGenres;
   }, [activeTab]);
 
   useEffect(() => {
@@ -75,8 +90,9 @@ export default function DashboardPage() {
 
       try {
         const tags = selectedChip !== 'All' ? [selectedChip.toLowerCase()] : [];
+
         const results = await searchJamendoTracks({
-          query,
+          query: query.trim(),
           limit: 12,
           tags,
         });
@@ -84,7 +100,7 @@ export default function DashboardPage() {
         setMusicResults(results);
       } catch (error) {
         console.error(error);
-        setMusicError('Could not load music right now.');
+        setMusicError(error.message || 'Could not load music right now.');
         setMusicResults([]);
       } finally {
         setLoading(false);
@@ -99,7 +115,7 @@ export default function DashboardPage() {
   const currentError = activeTab === 'videos' ? videoError : musicError;
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-slate-950 text-white">
       <Navbar dashboard />
 
       <section className="section-wrap py-8 sm:py-12">
@@ -108,9 +124,12 @@ export default function DashboardPage() {
             <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">
               Creator Workspace
             </p>
-            <h1 className="text-3xl font-semibold">
+            <h1 className="text-3xl font-semibold sm:text-4xl">
               Find the perfect {activeTab === 'videos' ? 'visuals' : 'soundtrack'}.
             </h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
+              Search free media, preview instantly, and move straight into your creative flow.
+            </p>
           </div>
 
           <SectionTabs
@@ -136,79 +155,83 @@ export default function DashboardPage() {
             }
           />
 
-          <button className="glass rounded-2xl px-4 py-3 text-sm text-slate-300 hover:bg-white/10">
+          <button
+            type="button"
+            className="glass rounded-2xl px-4 py-3 text-sm text-slate-300 transition hover:bg-white/10"
+          >
             Advanced Filters
           </button>
         </div>
 
-        <FilterChips items={chips} activeItem={selectedChip} onSelect={setSelectedChip} />
+        <FilterChips
+          items={chips}
+          activeItem={selectedChip}
+          onSelect={setSelectedChip}
+        />
       </section>
 
-      <section className="section-wrap space-y-10 pb-16">
-        <FeaturedSection
-          title={activeTab === 'videos' ? 'Featured videos' : 'Featured music'}
-          items={activeTab === 'videos' ? featuredVideos : featuredMusic}
-          type={activeTab === 'videos' ? 'video' : 'music'}
-        />
-
-        <div>
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">
+      <section className="section-wrap pb-16">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold sm:text-xl">
               {activeTab === 'videos' ? 'Trending clips' : 'Trending free tracks'}
             </h2>
-
-            {activeTab === 'videos' && currentItems.length > 0 && (
-              <p className="text-xs text-slate-400">
-                Results powered by Pixabay
-              </p>
-            )}
-
-            {activeTab === 'music' && currentItems.length > 0 && (
-              <p className="text-xs text-slate-400">
-                Results powered by Jamendo
-              </p>
-            )}
+            <p className="mt-1 text-sm text-slate-400">
+              {activeTab === 'videos'
+                ? 'Fresh visual assets for edits, reels, and content projects.'
+                : 'Free music tracks for edits, storytelling, and content production.'}
+            </p>
           </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={`${activeTab}-${query}-${selectedChip}-${loading}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-            >
-              {loading ? (
-                <LoadingSkeleton />
-              ) : currentError ? (
-                <EmptyState
-                  title={activeTab === 'videos' ? 'Videos could not load' : 'Music could not load'}
-                  description={currentError}
-                />
-              ) : currentItems.length === 0 ? (
-                <EmptyState
-                  title="No results found"
-                  description="Try another keyword, remove a filter, or switch tabs to explore a broader media selection."
-                />
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  {currentItems.map((item) => (
-                    <motion.div
-                      key={item.id}
-                      initial={{ opacity: 0, y: 14 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      {activeTab === 'videos' ? (
-                        <VideoCard video={item} />
-                      ) : (
-                        <MusicCard item={item} />
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
+          {activeTab === 'videos' && currentItems.length > 0 && (
+            <p className="text-xs text-slate-400">Results powered by Pixabay</p>
+          )}
+
+          {activeTab === 'music' && currentItems.length > 0 && (
+            <p className="text-xs text-slate-400">Results powered by Jamendo</p>
+          )}
         </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${activeTab}-${query}-${selectedChip}-${loading}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.25 }}
+          >
+            {loading ? (
+              <LoadingSkeleton />
+            ) : currentError ? (
+              <EmptyState
+                title={activeTab === 'videos' ? 'Videos could not load' : 'Music could not load'}
+                description={currentError}
+              />
+            ) : currentItems.length === 0 ? (
+              <EmptyState
+                title="No results found"
+                description="Try another keyword, remove a filter, or switch tabs to explore a broader media selection."
+              />
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {currentItems.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                  >
+                    {activeTab === 'videos' ? (
+                      <VideoCard video={item} />
+                    ) : (
+                      <MusicCard item={item} />
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </section>
 
       <Footer />
