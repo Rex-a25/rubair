@@ -1,93 +1,126 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Download, PlayCircle, PauseCircle } from 'lucide-react';
 import { useRef, useState } from 'react';
 
-export default function VideoCard({ item }) {
+export default function VideoCard({ video }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
-  const handlePreview = async () => {
-    if (!videoRef.current || !item.videoUrl) return;
+  const poster = video?.thumbnail || '';
+  const videoSrc = video?.videoUrl || '';
+  const creator = video?.creator || 'Unknown creator';
+  const duration = video?.duration || 'Video';
+  const quality = video?.quality || 'HD';
+  const sourceUrl = video?.sourceUrl || '#';
+  const downloadUrl = video?.downloadUrl || videoSrc || '#';
+  const title = video?.title || 'Pixabay Video';
 
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-      return;
-    }
+  const handleMouseEnter = async () => {
+    if (!videoRef.current || !videoSrc) return;
 
     try {
+      videoRef.current.currentTime = 0;
       await videoRef.current.play();
       setIsPlaying(true);
-    } catch (err) {
-      console.error('Video play failed:', err);
+    } catch (error) {
+      console.error('Video preview failed:', error);
+      setIsPlaying(false);
     }
   };
 
+  const handleMouseLeave = () => {
+    if (!videoRef.current) return;
+
+    videoRef.current.pause();
+    videoRef.current.currentTime = 0;
+    setIsPlaying(false);
+  };
+
   return (
-    <motion.article whileHover={{ y: -6 }} className="glass overflow-hidden rounded-2xl">
-      
-      {/* VIDEO / THUMBNAIL */}
-      <div className="relative h-44 bg-black">
-        {isPlaying ? (
+    <div
+      className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-lg"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className="relative aspect-[9/16] w-full overflow-hidden bg-black">
+        {videoSrc && !videoError ? (
           <video
             ref={videoRef}
-            src={item.videoUrl}
-            className="h-full w-full object-cover"
+            src={videoSrc}
+            poster={poster}
             muted
-            loop
-            controls
-            onPause={() => setIsPlaying(false)}
-            onEnded={() => setIsPlaying(false)}
+            playsInline
+            preload="metadata"
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              console.error('VIDEO TAG ERROR:', e);
+              console.error('FAILED SRC:', videoSrc);
+              setVideoError(true);
+            }}
+          />
+        ) : poster ? (
+          <img
+            src={poster}
+            alt={title}
+            className="h-full w-full object-cover"
           />
         ) : (
-          <img
-            src={item.thumbnail}
-            alt={item.title}
-            className="h-full w-full object-cover"
-          />
+          <div className="flex h-full w-full items-center justify-center text-sm text-white/50">
+            No preview available
+          </div>
         )}
 
-        <div className="absolute right-3 top-3 rounded-full bg-black/70 px-2 py-1 text-xs">
-          {item.quality}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white">
+          <div className="max-w-[70%]">
+            <p className="truncate text-sm font-semibold">{creator}</p>
+            <p className="text-xs text-white/70">
+              {duration} • {quality}
+            </p>
+          </div>
+
+          <span className="rounded-full bg-black/50 px-3 py-1 text-xs backdrop-blur">
+            {isPlaying ? 'Playing' : 'Preview'}
+          </span>
         </div>
       </div>
 
-      {/* CONTENT */}
       <div className="space-y-3 p-4">
-        <div>
-          <h3 className="font-medium">{item.title}</h3>
-          <p className="text-sm text-slate-400">
-            {item.creator} • {item.duration}
-          </p>
-        </div>
+        <p className="line-clamp-2 text-sm font-medium text-white">
+          {title}
+        </p>
 
-        <div className="flex gap-2">
-          <button
-            onClick={handlePreview}
-            className="flex-1 rounded-xl bg-white/90 px-3 py-2 text-xs font-medium text-black hover:bg-white"
-          >
-            <span className="flex items-center justify-center gap-1">
-              {isPlaying ? (
-                <PauseCircle className="h-4 w-4" />
-              ) : (
-                <PlayCircle className="h-4 w-4" />
-              )}
-              {isPlaying ? 'Stop' : 'Preview'}
-            </span>
-          </button>
-
+        <div className="flex items-center justify-between gap-3">
           <a
-            href={item.downloadUrl}
+            href={sourceUrl}
             target="_blank"
             rel="noreferrer"
-            className="rounded-xl border border-white/20 px-3 py-2 text-xs hover:bg-white/10"
+            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90"
           >
-            <Download className="h-4 w-4" />
+            View Source
           </a>
+
+          {videoSrc ? (
+            <a
+              href={downloadUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Download
+            </a>
+          ) : (
+            <button
+              disabled
+              className="cursor-not-allowed rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-white/40"
+            >
+              No file
+            </button>
+          )}
         </div>
       </div>
-    </motion.article>
+    </div>
   );
 }

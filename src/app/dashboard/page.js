@@ -198,7 +198,7 @@ export default function DashboardPage() {
                       animate={{ opacity: 1, y: 0 }}
                     >
                       {activeTab === 'videos' ? (
-                        <VideoCard item={item} />
+                        <VideoCard video={item} />
                       ) : (
                         <MusicCard item={item} />
                       )}
