@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Menu, Sparkles } from 'lucide-react';
+import { Menu, Clapperboard} from 'lucide-react';
 
 export default function Navbar({ dashboard = false }) {
   return (
@@ -15,7 +15,7 @@ export default function Navbar({ dashboard = false }) {
       <div className="section-wrap flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-wide">
           <span className="rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-500 p-2 text-slate-950 shadow-glow">
-            <Sparkles className="h-4 w-4" />
+            <Clapperboard className="h-4 w-4" />
           </span>
           <span>MediaFinder</span>
         </Link>

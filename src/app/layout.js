@@ -1,8 +1,12 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'MediaFinder',
-  description: 'A premium media discovery workspace for modern creators.'
+  title: 'Media Finder',
+  description: 'A premium media discovery workspace for modern creators.',
+   icons: {
+    icon: '/favicon.ico',
+  }
+
 };
 
 export default function RootLayout({ children }) {
